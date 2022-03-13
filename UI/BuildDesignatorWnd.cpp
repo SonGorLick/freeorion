@@ -1301,7 +1301,7 @@ void BuildDesignatorWnd::SetBuild(int queue_idx) {
     m_enc_detail_panel->Refresh();
 }
 
-void BuildDesignatorWnd::SelectSystem(int system_id) {
+void BuildDesignatorWnd::SelectSystem(int system_id, const ScriptingContext& context) {
     if (system_id == SidePanel::SystemID()) {
         // don't need to do anything.  already showing the requested system.
         return;
@@ -1310,7 +1310,7 @@ void BuildDesignatorWnd::SelectSystem(int system_id) {
     if (system_id != INVALID_OBJECT_ID) {
         // set sidepanel's system and autoselect a suitable planet
         SidePanel::SetSystem(system_id);
-        SelectDefaultPlanet();
+        SelectDefaultPlanet(context);
     }
 }
 
@@ -1524,7 +1524,7 @@ void BuildDesignatorWnd::BuildItemRequested(const ProductionQueue::ProductionIte
 void BuildDesignatorWnd::BuildQuantityChanged(int queue_idx, int quantity)
 { BuildQuantityChangedSignal(queue_idx, quantity); }
 
-void BuildDesignatorWnd::SelectDefaultPlanet() {
+void BuildDesignatorWnd::SelectDefaultPlanet(const ScriptingContext& context) {
     int system_id = SidePanel::SystemID();
     if (system_id == INVALID_OBJECT_ID) {
         this->SelectPlanet(INVALID_OBJECT_ID);
@@ -1549,13 +1549,13 @@ void BuildDesignatorWnd::SelectDefaultPlanet() {
     // only checking visible objects for this clients empire (and not the
     // latest known objects) as an empire shouldn't be able to use a planet or
     // system it can't currently see as a production location.
-    auto sys = Objects().get<System>(system_id);
+    auto sys = context.ContextObjects().get<System>(system_id);
     if (!sys) {
         ErrorLogger() << "BuildDesignatorWnd::SelectDefaultPlanet couldn't get system with id " << system_id;
         return;
     }
 
-    auto planets = Objects().find<const Planet>(sys->PlanetIDs());
+    auto planets = context.ContextObjects().find<const Planet>(sys->PlanetIDs());
 
     if (planets.empty()) {
         this->SelectPlanet(INVALID_OBJECT_ID);

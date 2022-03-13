@@ -2776,18 +2776,15 @@ void MapWnd::EnableOrderIssuing(bool enable/* = true*/) {
     FleetUIManager::GetFleetUIManager().EnableOrderIssuing(enable);
 }
 
-void MapWnd::InitTurn() {
-    int turn_number = CurrentTurn();
-    DebugLogger() << "Initializing turn " << turn_number;
+void MapWnd::InitTurn(ScriptingContext& context) {
+    DebugLogger() << "Initializing turn " << context.current_turn;
     SectionedScopedTimer timer("MapWnd::InitTurn");
     timer.EnterSection("init");
 
     //DebugLogger() << GetSupplyManager().Dump();
 
-    EmpireManager& empires = Empires();
-    Universe& universe = GetUniverse();
-    ObjectMap& objects = universe.Objects();
-    ScriptingContext context{universe, empires, GetGalaxySetupData(), GetSpeciesManager(), GetSupplyManager()};
+    Universe& universe = context.ContextUniverse();
+    ObjectMap& objects = context.ContextObjects();
 
 
     TraceLogger(effects) << "MapWnd::InitTurn initial:";
@@ -2805,8 +2802,8 @@ void MapWnd::InitTurn() {
     GGHumanClientApp::GetApp()->Orders().ApplyOrders(context);
 
     timer.EnterSection("meter estimates");
-    GetUniverse().UpdateMeterEstimates(context);
-    GetUniverse().ApplyAppearanceEffects(context);
+    universe.UpdateMeterEstimates(context);
+    universe.ApplyAppearanceEffects(context);
 
     timer.EnterSection("init rendering");
     // set up system icons, starlanes, galaxy gas rendering
@@ -2850,7 +2847,7 @@ void MapWnd::InitTurn() {
 
     // set turn button to current turn
     m_btn_turn->SetText(boost::io::str(FlexibleFormat(UserString("MAP_BTN_TURN_UPDATE")) %
-                                       std::to_string(turn_number)));
+                                       std::to_string(context.current_turn)));
     RefreshTurnButtonTooltip();
 
     m_ready_turn = false;
@@ -2898,7 +2895,7 @@ void MapWnd::InitTurn() {
     // empire is recreated each turn based on turn update from server, so
     // connections of signals emitted from the empire must be remade each turn
     // (unlike connections to signals from the sidepanel)
-    auto this_client_empire = empires.GetEmpire(GGHumanClientApp::GetApp()->EmpireID());
+    auto this_client_empire = context.GetEmpire(GGHumanClientApp::GetApp()->EmpireID());
     if (this_client_empire) {
         this_client_empire->GetResourcePool(ResourceType::RE_INFLUENCE)->ChangedSignal.connect(
             boost::bind(&MapWnd::RefreshInfluenceResourceIndicator, this));
@@ -2924,7 +2921,7 @@ void MapWnd::InitTurn() {
 
 
     timer.EnterSection("update resource pools");
-    for (auto& entry : empires)
+    for (auto& entry : context.Empires())
         entry.second->UpdateResourcePools(context);
 
     timer.EnterSection("refresh government");
@@ -2932,7 +2929,7 @@ void MapWnd::InitTurn() {
 
 
     timer.EnterSection("refresh research");
-    m_research_wnd->Refresh();
+    m_research_wnd->Refresh(context);
 
 
     timer.EnterSection("refresh sidepanel");
@@ -2940,10 +2937,10 @@ void MapWnd::InitTurn() {
 
 
     timer.EnterSection("refresh production wnd");
-    m_production_wnd->Refresh();
+    m_production_wnd->Refresh(context);
 
 
-    if (turn_number == 1 && this_client_empire) {
+    if (context.current_turn == 1 && this_client_empire) {
         // start first turn with player's system selected
         if (auto obj = objects.get(this_client_empire->CapitalID())) {
             SelectSystem(obj->SystemID());
@@ -2951,8 +2948,8 @@ void MapWnd::InitTurn() {
         }
 
         // default the tech tree to be centred on something interesting
-        m_research_wnd->Reset();
-    } else if (turn_number == 1 && !this_client_empire) {
+        m_research_wnd->Reset(context);
+    } else if (context.current_turn == 1 && !this_client_empire) {
         CenterOnMapCoord(0.0, 0.0);
     }
 
@@ -5987,8 +5984,9 @@ void MapWnd::RemovePopup(MapWndPopup* popup) {
 }
 
 void MapWnd::ResetEmpireShown() {
-    m_production_wnd->SetEmpireShown(GGHumanClientApp::GetApp()->EmpireID());
-    m_research_wnd->SetEmpireShown(GGHumanClientApp::GetApp()->EmpireID());
+    const ScriptingContext context;
+    m_production_wnd->SetEmpireShown(GGHumanClientApp::GetApp()->EmpireID(), context);
+    m_research_wnd->SetEmpireShown(GGHumanClientApp::GetApp()->EmpireID(), context);
     // TODO: Design?
 }
 
@@ -6154,7 +6152,8 @@ bool MapWnd::ReturnToMap() {
     if (wnd == m_sitrep_panel) {
         ToggleSitRep();
     } else if (wnd == m_research_wnd) {
-        ToggleResearch();
+        ScriptingContext context;
+        ToggleResearch(context);
     } else if (wnd == m_design_wnd) {
         ToggleDesign();
     } else if (wnd == m_production_wnd) {
@@ -6516,7 +6515,7 @@ void MapWnd::RestoreSidePanel() {
         ReselectLastSystem();
 }
 
-void MapWnd::ShowResearch() {
+void MapWnd::ShowResearch(const ScriptingContext& context) {
     ClearProjectedFleetMovementLines();
 
     // hide other "competing" windows
@@ -6529,7 +6528,7 @@ void MapWnd::ShowResearch() {
     GG::GUI::GetGUI()->MoveUp(m_research_wnd);
     PushWndStack(m_research_wnd);
 
-    m_research_wnd->Update();
+    m_research_wnd->Update(context);
 
     // hide pedia again if it is supposed to be hidden persistently
     if (GetOptionsDB().Get<bool>("ui.research.pedia.hidden.enabled"))
@@ -6549,12 +6548,12 @@ void MapWnd::HideResearch() {
     m_btn_research->SetRolloverGraphic (GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "research_mouseover.png")));
 }
 
-bool MapWnd::ToggleResearch() {
+bool MapWnd::ToggleResearch(const ScriptingContext& context) {
     if (m_research_wnd->Visible()) {
         HideResearch();
         RestoreSidePanel();
     } else {
-        ShowResearch();
+        ShowResearch(context);
     }
     return true;
 }
@@ -6583,18 +6582,20 @@ void MapWnd::ShowProduction() {
     m_btn_production->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "production_mouseover.png")));
     m_btn_production->SetRolloverGraphic (GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "production.png")));
 
+    const ScriptingContext context;
+
     // if no system is currently shown in sidepanel, default to this empire's
     // home system (ie. where the capital is)
     if (SidePanel::SystemID() == INVALID_OBJECT_ID) {
-        if (const Empire* empire = GetEmpire(GGHumanClientApp::GetApp()->EmpireID()))
-            if (auto obj = Objects().get(empire->CapitalID()))
+        if (auto empire = context.GetEmpire(GGHumanClientApp::GetApp()->EmpireID()))
+            if (auto obj = context.ContextObjects().get(empire->CapitalID()))
                 SelectSystem(obj->SystemID());
     } else {
         // if a system is already shown, make sure a planet gets selected by
         // default when the production screen opens up
-        m_production_wnd->SelectDefaultPlanet();
+        m_production_wnd->SelectDefaultPlanet(context);
     }
-    m_production_wnd->Update();
+    m_production_wnd->Update(context);
     m_production_wnd->Show();
 
     // hide pedia again if it is supposed to be hidden persistently

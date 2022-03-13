@@ -129,7 +129,7 @@ public:
 
     void EnableOrderIssuing(bool enable = true);                 //!< enables or disables order issuing and pressing the turn button.
 
-    void InitTurn();                                             //!< called at the start of each turn
+    void InitTurn(ScriptingContext& context);                    //!< called at the start of each turn
     void MidTurnUpdate();                                        //!< called after receiving updated Universe during turn processing, but not when the full turn update is received
 
     void RestoreFromSaveData(const SaveGameUIData& data);        //!< restores the UI state that was saved in an earlier call to GetSaveGameUIData().
@@ -397,8 +397,8 @@ private:
     void HideSidePanelAndRememberIfItWasVisible();
     void RestoreSidePanel();
 
-    bool ToggleResearch();
-    void ShowResearch();
+    bool ToggleResearch(const ScriptingContext& context);
+    void ShowResearch(const ScriptingContext& context);
     void HideResearch();
 
     bool ToggleProduction();

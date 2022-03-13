@@ -527,18 +527,14 @@ public:
     void Render() override;
 
     void LClick(const GG::Pt& pt, GG::Flags<GG::ModKey> mod_keys) override;
-
     void LDoubleClick(const GG::Pt& pt, GG::Flags<GG::ModKey> mod_keys) override;
-
     void RClick(const GG::Pt& pt, GG::Flags<GG::ModKey> mod_keys) override;
-
     void MouseWheel(const GG::Pt& pt, int move, GG::Flags<GG::ModKey> mod_keys) override;
-
     void SizeMove(const GG::Pt& ul, const GG::Pt& lr) override;
 
     void Select(bool selected);
 
-    void Refresh(); ///< updates panels, shows / hides colonize button, redoes layout of infopanels
+    void Refresh(const ScriptingContext& context); ///< updates panels, shows / hides colonize button, redoes layout of infopanels
 
     /** Enables, or disables if \a enable is false, issuing orders via this PlanetPanel. */
     void EnableOrderIssuing(bool enable = true);
@@ -578,27 +574,26 @@ private:
 
     void FocusDropListSelectionChangedSlot(GG::DropDownList::iterator selected); ///< called when droplist selection changes, emits FocusChangedSignal
 
-    int                                     m_planet_id;                ///< id for the planet with is represented by this planet panel
-    std::shared_ptr<GG::TextControl>        m_planet_name;              ///< planet name;
-    std::shared_ptr<GG::Label>              m_env_size;                 ///< indicates size and planet environment rating uncolonized planets;
-    std::shared_ptr<GG::Button>             m_colonize_button;          ///< btn which can be pressed to colonize this planet;
-    std::shared_ptr<GG::Button>             m_invade_button;            ///< btn which can be pressed to invade this planet;
-    std::shared_ptr<GG::Button>             m_bombard_button;           ///< btn which can be pressed to bombard this planet;
-    std::shared_ptr<GG::DynamicGraphic>     m_planet_graphic;           ///< image of the planet (can be a frameset); this is now used only for asteroids;
-    std::shared_ptr<GG::StaticGraphic>      m_planet_status_graphic;    ///< gives information about the planet status, like supply disconnection
-    std::shared_ptr<RotatingPlanetControl>  m_rotating_planet_graphic;  ///< a realtime-rendered planet that rotates, with a textured surface mapped onto it
-    bool                                    m_selected;                 ///< is this planet panel selected
-    bool                                    m_order_issuing_enabled;    ///< can orders be issues via this planet panel?
-    GG::Clr                                 m_empire_colour;            ///< colour to use for empire-specific highlighting.  set based on ownership of planet.
-    std::shared_ptr<GG::DropDownList>       m_focus_drop;               ///< displays and allows selection of planetary focus;
-    std::shared_ptr<PopulationPanel>        m_population_panel;         ///< contains info about population and health
-    std::shared_ptr<ResourcePanel>          m_resource_panel;           ///< contains info about resources production and focus selection UI
-    std::shared_ptr<MilitaryPanel>          m_military_panel;           ///< contains icons representing military-related meters
-    std::shared_ptr<BuildingsPanel>         m_buildings_panel;          ///< contains icons representing buildings
-    std::shared_ptr<SpecialsPanel>          m_specials_panel;           ///< contains icons representing specials
-    StarType                                m_star_type;
-
+    int                                     m_planet_id = INVALID_OBJECT_ID;///< id for the planet with is represented by this planet panel
+    std::shared_ptr<GG::TextControl>        m_planet_name;                  ///< planet name;
+    std::shared_ptr<GG::Label>              m_env_size;                     ///< indicates size and planet environment rating uncolonized planets;
+    std::shared_ptr<GG::Button>             m_colonize_button;              ///< btn which can be pressed to colonize this planet;
+    std::shared_ptr<GG::Button>             m_invade_button;                ///< btn which can be pressed to invade this planet;
+    std::shared_ptr<GG::Button>             m_bombard_button;               ///< btn which can be pressed to bombard this planet;
+    std::shared_ptr<GG::DynamicGraphic>     m_planet_graphic;               ///< image of the planet (can be a frameset); this is now used only for asteroids;
+    std::shared_ptr<GG::StaticGraphic>      m_planet_status_graphic;        ///< gives information about the planet status, like supply disconnection
+    std::shared_ptr<RotatingPlanetControl>  m_rotating_planet_graphic;      ///< a realtime-rendered planet that rotates, with a textured surface mapped onto it
+    GG::Clr                                 m_empire_colour;                ///< colour to use for empire-specific highlighting.  set based on ownership of planet.
+    std::shared_ptr<GG::DropDownList>       m_focus_drop;                   ///< displays and allows selection of planetary focus;
+    std::shared_ptr<PopulationPanel>        m_population_panel;             ///< contains info about population and health
+    std::shared_ptr<ResourcePanel>          m_resource_panel;               ///< contains info about resources production and focus selection UI
+    std::shared_ptr<MilitaryPanel>          m_military_panel;               ///< contains icons representing military-related meters
+    std::shared_ptr<BuildingsPanel>         m_buildings_panel;              ///< contains icons representing buildings
+    std::shared_ptr<SpecialsPanel>          m_specials_panel;               ///< contains icons representing specials
+    StarType                                m_star_type = StarType::INVALID_STAR_TYPE;
     boost::signals2::connection             m_planet_connection;
+    bool                                    m_selected = false;             ///< is this planet panel selected
+    bool                                    m_order_issuing_enabled = false;///< can orders be issues via this planet panel?
 };
 
 /** Container class that holds PlanetPanels.  Creates and destroys PlanetPanel
@@ -622,15 +617,16 @@ public:
     void PreRender() override;
 
     void Clear();
-    void SetPlanets(const std::vector<int>& planet_ids, StarType star_type);
-    void SelectPlanet(int planet_id);        //!< programatically selects a planet with id \a planet_id
+    void SetPlanets(const std::vector<int>& planet_ids, StarType star_type, const ObjectMap& objects);
+    void SelectPlanet(int planet_id, const ObjectMap& objects); //!< programatically selects a planet with id \a planet_id
     void SetValidSelectionPredicate(const std::shared_ptr<UniverseObjectVisitor> &visitor);
     void ScrollTo(int pos);
 
     /** Updates data displayed in info panels and redoes layout
      *  @param[in] excluded_planet_id Excludes panels with this planet id
      *  @param[in] require_prerender Set panels to RequirePreRender */
-    void RefreshAllPlanetPanels(int excluded_planet_id = INVALID_OBJECT_ID,
+    void RefreshAllPlanetPanels(const ScriptingContext& context,
+                                int excluded_planet_id = INVALID_OBJECT_ID,
                                 bool require_prerender = false);
 
     virtual void    ShowScrollbar();
@@ -1523,11 +1519,10 @@ std::set<const Ship*> AutomaticallyChosenBombardShips(int target_planet_id) { //
     return retval;
 }
 
-void SidePanel::PlanetPanel::Refresh() {
+void SidePanel::PlanetPanel::Refresh(const ScriptingContext& context) {
     int client_empire_id = GGHumanClientApp::GetApp()->EmpireID();
     m_planet_connection.disconnect();
 
-    ScriptingContext context;
     Universe& u = context.ContextUniverse();
     ObjectMap& objects = context.ContextObjects(); // must be mutable to allow setting species and updating to estimate colonize button numbers
     const SpeciesManager& sm = context.species;
@@ -2601,18 +2596,20 @@ void SidePanel::PlanetPanelContainer::Clear() {
     AttachChild(m_vscroll);
 }
 
-void SidePanel::PlanetPanelContainer::SetPlanets(const std::vector<int>& planet_ids, StarType star_type) {
+void SidePanel::PlanetPanelContainer::SetPlanets(const std::vector<int>& planet_ids,
+                                                 StarType star_type, const ObjectMap& objects)
+{
     int initial_selected_planet_panel = m_selected_planet_id;
 
     // remove old panels
     Clear();
 
     std::multimap<int, int> orbits_planets;
-    for (const auto& planet : Objects().find<Planet>(planet_ids)) {
+    for (const auto& planet : objects.find<Planet>(planet_ids)) {
         if (!planet)
             continue;
         int system_id = planet->SystemID();
-        auto system = Objects().get<System>(system_id).get();
+        auto system = objects.get<System>(system_id).get();
         if (!system) {
             ErrorLogger() << "PlanetPanelContainer::SetPlanets couldn't find system of planet" << planet->Name();
             continue;
@@ -2649,7 +2646,7 @@ void SidePanel::PlanetPanelContainer::SetPlanets(const std::vector<int>& planet_
     // they take this into account when doing contents
     RefreshAllPlanetPanels();
 
-    SelectPlanet(initial_selected_planet_panel);
+    SelectPlanet(initial_selected_planet_panel, objects);
 
     RequirePreRender();
 }
@@ -2821,12 +2818,12 @@ void SidePanel::PlanetPanelContainer::VScroll(int pos_top, int pos_bottom, int r
 }
 
 void SidePanel::PlanetPanelContainer::RefreshAllPlanetPanels(
-    int excluded_planet_id, bool require_prerender)
+    const ScriptingContext& context, int excluded_planet_id, bool require_prerender)
 {
     for (auto& panel : m_planet_panels) {
         if (excluded_planet_id > 0 && panel->PlanetID() == INVALID_OBJECT_ID)
             continue;
-        panel->Refresh();
+        panel->Refresh(context);
         if (require_prerender)
             panel->RequirePreRender();
     }
@@ -3288,7 +3285,7 @@ void SidePanel::RefreshSystemNames() {
     }
 }
 
-void SidePanel::RefreshImpl() {
+void SidePanel::RefreshImpl(const ScriptingContext& context) {
     ScopedTimer sidepanel_refresh_impl_timer("SidePanel::RefreshImpl", true);
     Sound::TempUISoundDisabler sound_disabler;
 
@@ -3301,7 +3298,7 @@ void SidePanel::RefreshImpl() {
 
     RefreshSystemNames();
 
-    auto system = Objects().get<System>(s_system_id);
+    auto system = context.ContextObjects().get<System>(s_system_id);
     // if no system object, there is nothing to populate with.  early abort.
     if (!system)
         return;
@@ -3342,7 +3339,8 @@ void SidePanel::RefreshImpl() {
     //std::cout << " ... setting planet panel container planets" << std::endl;
     const auto& planet_ids = system->PlanetIDs();
     std::vector<int> planet_ids_vec(planet_ids.begin(), planet_ids.end());
-    m_planet_panel_container->SetPlanets(planet_ids_vec, system->GetStarType());
+    m_planet_panel_container->SetPlanets(planet_ids_vec, system->GetStarType(),
+                                         context.ContextObjects());
 
 
     // populate system resource summary
@@ -3355,7 +3353,7 @@ void SidePanel::RefreshImpl() {
     int all_owner_id = ALL_EMPIRES;
     bool all_planets_share_owner = true;
     std::vector<int> all_planets, player_planets;
-    for (auto& planet : Objects().find<const Planet>(planet_ids)) {
+    for (auto& planet : context.ContextObjects().find<const Planet>(planet_ids)) {
         // If it is neither owned nor populated with natives, it can be ignored.
         if (planet->Unowned() && planet->SpeciesName().empty())
             continue;
@@ -3562,11 +3560,11 @@ int SidePanel::SystemID()
 int SidePanel::SelectedPlanetID() const
 { return (m_selection_enabled ? s_planet_id : INVALID_OBJECT_ID); }
 
-bool SidePanel::PlanetSelectable(int planet_id) const {
+bool SidePanel::PlanetSelectable(int planet_id, const ObjectMap& objects) const {
     if (!m_selection_enabled)
         return false;
 
-    auto system = Objects().get<System>(s_system_id);
+    auto system = objects.get<System>(s_system_id);
     if (!system)
         return false;
 
@@ -3574,7 +3572,7 @@ bool SidePanel::PlanetSelectable(int planet_id) const {
     if (planet_ids.count(planet_id) == 0)
         return false;
 
-    auto planet = Objects().get<Planet>(planet_id);
+    auto planet = objects.get<Planet>(planet_id);
     if (!planet)
         return false;
 
@@ -3590,7 +3588,7 @@ bool SidePanel::PlanetSelectable(int planet_id) const {
     return planet->Accept(*selectable_visitor).use_count();
 }
 
-void SidePanel::SelectPlanet(int planet_id) {
+void SidePanel::SelectPlanet(int planet_id, const ObjectMap& objects) {
     if (s_planet_id == planet_id)
         return;
 
@@ -3599,7 +3597,7 @@ void SidePanel::SelectPlanet(int planet_id) {
     for (auto& weak_panel : s_side_panels) {
         if (auto panel = weak_panel.lock())
             if (panel->m_selection_enabled) {
-                planet_selectable = panel->PlanetSelectable(planet_id);
+                planet_selectable = panel->PlanetSelectable(planet_id, objects);
                 break;
             }
     }

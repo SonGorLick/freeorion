@@ -9,6 +9,7 @@
 
 class SidePanel;
 class EncyclopediaDetailPanel;
+struct ScriptingContext;
 
 class BuildDesignatorWnd : public GG::Wnd {
 public:
@@ -38,7 +39,7 @@ public:
 
     /** Programatically sets this Wnd's selected system.
       * Does not emit a SystemSelectedSignal. */
-    void SelectSystem(int system_id);
+    void SelectSystem(int system_id, const ScriptingContext& context);
 
     /** Programatically sets this Wnd's selected planet.
       * Does not emit a PlanetSelectedSignal. */
@@ -46,7 +47,7 @@ public:
 
     /** Attempts to find a planet to select, and if successful, selects that
       * planet */
-    void SelectDefaultPlanet();
+    void SelectDefaultPlanet(const ScriptingContext& context);
 
     /** Sets BuildSelector's empire ID to empire of this client, and then calls
       * Update. */
